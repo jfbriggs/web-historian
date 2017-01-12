@@ -10,8 +10,13 @@ exports.handleRequest = function (req, res) {
   console.log(req.method);
   var slicedUrl;
 
-  
+  // Variables to determine which page will get served up in the end
+  var directory = archive.paths.siteAssets;
+  var pageToLoad = 'index.html';
+
+  // HANDLING OF ANY POST REQUESTS (i.e. 'grab a web-page') VIA INPUT FIELD
   if (req.method === 'POST') {
+    console.log('REQ METHOD IS POST');
     var body = [];
     var slicedUrl;
 
@@ -19,32 +24,69 @@ exports.handleRequest = function (req, res) {
       body.push(chunk);
     }).on('end', function() {
       body = Buffer.concat(body).toString();
+      console.log('body,  ', body);
       slicedUrl = body.slice(4);
-      // Run function to add the url to sites.txt
-      archive.addUrlToList(slicedUrl, function() {
-        console.log('Added', slicedUrl, 'to be downloaded.');
-        //SERVE UP LOADING PAGE
+
+      // archive.addUrlToList(slicedUrl, function() {  // Run function to add the url to sites.txt
+      //   console.log('Added', slicedUrl, 'to be downloaded.');
+      //   fs.readFile(archive.paths.list, 'utf8', function(err, data) {  // then read the sites.txt list...
+      //     if (err) {
+      //       throw err;
+      //     } else {
+      //       console.log(data);  // ...and console log what's in there
+      //     }
+      //   });
+      // });
+
+
+      // Run "isUrlInList" on url (slicedUrl)
+      archive.isUrlInList(slicedUrl, function(err, exists) {
+        if (err) {
+          throw err;
+        } else {
+          // console.log('Does it exist?: ', exists);
+          if (exists) { // if the URL exists
+            archive.isUrlArchived(slicedUrl, function(err, isArchived) { // run 'isUrlArchived'
+              if (err) {
+                throw err;
+              } else {
+                if (isArchived) { // if the Url is archived
+                  directory = archive.paths.archivedAssets;// set directory to archivedAssets, 
+                  pageToLoad = slicedUrl; //and pageToLoad to slicedUrl
+                } else { // otherwise...
+                  pageToLoad = 'loading.html'; // set pageToLoad to loading.html
+                }
+              }
+            });
+
+          } else { // if the URL doesn't exist in the sites.txt list
+            archive.addUrlToList(slicedUrl, function() {  // Run function to add the url to sites.txt
+              console.log('Added', slicedUrl, 'to be downloaded.');
+              fs.readFile(archive.paths.list, 'utf8', function(err, data) {  // then read the sites.txt list...
+                if (err) {
+                  throw err;
+                } else {
+                  console.log(data);  // ...and console log what's in there
+                }
+              });
+            });
+          }
+        }
       });
 
       res.writeHeader(302, helpers.headers);
-      res.end();
+      helpers.serveAssets(res, path.join(directory, pageToLoad), function(data) {
+        res.end(data);
+      });
     });
 
-    // archive.isUrlInList(body, function(err, exists) {
-    //   if (!err && !exists) {
-    // archive.addUrlToList(slicedUrl, function() {
-    //   console.log('Added', slicedUrl, 'to be downloaded.');
-    //   //SERVE UP LOADING PAGE
-    // });
-    //   } else if (!err && exists) {
-    //     SERVE UP LOADING PAGE
-    //   }
-    // });
+
+  } else if (req.method === 'GET') {
+  // INITIAL LOAD (GET REQUEST): INDEX.HTML IS BEING REQUESTED
+    helpers.serveAssets(res, path.join(directory, pageToLoad), function(data) {
+      res.end(data);
+    });
   }
-  // INITIAL LOAD: INDEX.HTML IS BEING REQUESTED
-  helpers.serveAssets(res, path.join(archive.paths.siteAssets, 'index.html'), function(data) {
-    res.end(data);
-  });
 
 
   // fs.readFile(path.join(archive.paths.siteAssets, 'index.html'), 'utf8', function(err, data) {
