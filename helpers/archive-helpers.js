@@ -72,11 +72,14 @@ exports.isUrlArchived = function(url, callback) {
 };
 
 exports.downloadUrls = function(urls) {
+  console.log(urls);
   urls.forEach(function(url) {
-    request('http://' + url).pipe(
-      fs.createWriteStream(path.join(exports.paths.archivedSites, url))
-    );
-    console.log(url, 'saved to archive.');
+    if (url !== '') {
+      request('http://' + url).pipe(
+        fs.createWriteStream(path.join(exports.paths.archivedSites, url))
+      );
+      console.log(url, 'saved to archive.');
+    }
   });
 
 };
